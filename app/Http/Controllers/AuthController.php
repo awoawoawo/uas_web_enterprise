@@ -49,8 +49,8 @@ class AuthController extends Controller
 
         if (!$user || hash('sha256', $request->password) !== $user->hashed_password) {
             return back()->withErrors([
-                'email' => 'The provided credentials are incorrect.',
-            ]);
+                'login' => 'email/password incorrect'
+            ])->withInput();
         }
 
         Auth::login($user);

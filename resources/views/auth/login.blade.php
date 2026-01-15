@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Sleepy Panda - Selamat Datang</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Urbanist dari Google Fonts -->
@@ -188,7 +189,12 @@
             <form method="POST" action="{{ route('login') }}" class="px-3" id="loginForm">
                 @csrf
 
-                <!-- Pesan error -->
+                <!-- Pesan error dari server -->
+                @if($errors->any())
+                <div class="error-message text-center px-3 show">email/password incorrect</div>
+                @endif
+
+                <!-- Pesan error client-side -->
                 <div class="error-message text-center px-3" id="errorMessage">email/password incorrect</div>
 
                 <!-- Form Email dengan icon -->
@@ -254,7 +260,7 @@
                     Kode OTP dan instruksi reset password telah dikirim ke email Anda. Silakan cek inbox atau folder spam.
                 </div>
 
-                <form method="POST" action="#" class="px-3" id="forgotPasswordForm" onsubmit="return validateForgotPassword(event)">
+                <form method="POST" action="#" class="px-3" id="forgotPasswordForm">
                     @csrf
                     <div class="mb-3">
                         <div class="input-group">
@@ -263,7 +269,7 @@
                                     <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2zm13 2.383-4.758 2.855L15 11.114v-5.73zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741zM1 11.114l4.758-2.876L1 5.383v5.73z" />
                                 </svg>
                             </span>
-                            <input type="text" name="reset_email" id="resetEmailInput" class="form-control" placeholder="Email" required>
+                            <input type="email" name="reset_email" id="resetEmailInput" class="form-control" placeholder="Email" required>
                         </div>
                         <div class="forgot-error-message" id="forgotErrorMessage"></div>
                     </div>
@@ -322,7 +328,8 @@
             return true;
         });
 
-        function validateForgotPassword(event) {
+        // Handle Forgot Password Form
+        document.getElementById('forgotPasswordForm').addEventListener('submit', function(event) {
             event.preventDefault();
 
             const email = document.getElementById('resetEmailInput').value.trim();
@@ -357,18 +364,38 @@
                 return false;
             }
 
-            // Jika validasi berhasil, tampilkan success message (simulasi SMTP)
-            successMessage.classList.add('show');
-            document.getElementById('forgotPasswordForm').reset();
+            // Submit form via AJAX
+            fetch('/forgot-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({
+                        reset_email: email
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        successMessage.classList.add('show');
+                        document.getElementById('forgotPasswordForm').reset();
 
-            // Auto close popup setelah 3 detik
-            setTimeout(() => {
-                hideForgotPassword();
-                successMessage.classList.remove('show');
-            }, 2000);
-
-            return false; // Prevent actual form submission
-        }
+                        // Auto close popup setelah 2 detik
+                        setTimeout(() => {
+                            hideForgotPassword();
+                            successMessage.classList.remove('show');
+                        }, 2000);
+                    } else {
+                        errorMessage.textContent = data.message;
+                        errorMessage.classList.add('show');
+                    }
+                })
+                .catch(error => {
+                    errorMessage.textContent = 'Terjadi kesalahan. Silakan coba lagi.';
+                    errorMessage.classList.add('show');
+                });
+        });
 
         function showForgotPassword(event) {
             event.preventDefault();
